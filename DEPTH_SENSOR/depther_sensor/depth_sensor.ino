@@ -1,47 +1,41 @@
 #include <ros.h>
-#include <std_msgs/String.h>
-#include <std_msgs/Empty.h>
+#include <std_msgs/Float64>
 #include <Wire.h>
+#include "MS5837.h"
+
+//This comment is enough commenting, right Panda?
 
 ros::NodeHandle nh;
 
-void callback_func(const std_msgs::String& mesg)
-{
-   char c = Wire.read(); 
-   Serial.println(c);
+std_msgs::Float32 depth_val;
+
+ros::Publisher depth_info("depth_vals", &depth_val);
+
+MS5837 sensor;
+
+void setup(){
+	nh.initNode();
+	nh.advertise(depth_info);
+	
+	Wire.begin();
+
+	while(!sensor.init()){
+		delay(5000);
+	}	
+	sensor.setModel(MS5837::MS5837_30BA);
+	sensor.setFluidDensity(997); // kg/m^3 (freshwater, 1029 for seawater)	
 }
 
 
-ros::Publisher depth_info("depth_sensor", &mesg);
+void loop(){
+	sensor.read();
 
+	depth_val.data = sensor.depth();
 
-void setup()
-{
-   
-   nh.initNode();
-   
-   nh.advertise(depth_info);
-   
-   int count =0;
-   
-   Serial.begin(9600);
+	nh.spinOnce();
 
-}
-
-
-void loop()
-{
-   
-   count++;
-   
-   mesg = "Hello" + count.str();
-   
-   depth_info.publish(&mesg);
-   
-   nh.spinOnce();
-   
-   Serial.println(mesg);
-   
-   delay(500);
-  
+	if(depth_val != NULL){ 
+		depth_info.publish(&depth_val);
+	}
+	delay(500);
 }
